@@ -5,6 +5,7 @@ import argparse
 import boto3
 from botocore.exceptions import ClientError
 
+from .helpers import getMyIP
 
 class EC2Instance:
   def __init__(self, ec2Name):
@@ -55,6 +56,36 @@ class EC2Instance:
     except ClientError as e:
       print(e)
 
+  def setSecurityGroupMyIP(self):
+    if self.inst == None:
+      return
+    
+    sg = self.inst['SecurityGroups'][0]['GroupId']
+    ip = getMyIP() + '/32'
+
+    data = self.ec2.authorize_security_group_ingress(
+        GroupId=sg,
+        IpPermissions=[
+            {'IpProtocol': 'tcp',
+             'FromPort': 80,
+             'ToPort': 80,
+             'IpRanges': [{'CidrIp': ip}]},
+            {'IpProtocol': 'tcp',
+             'FromPort': 443,
+             'ToPort': 443,
+             'IpRanges': [{'CidrIp': ip}]},
+            {'IpProtocol': 'tcp',
+             'FromPort': 8888,
+             'ToPort': 8888,
+             'IpRanges': [{'CidrIp': ip}]},
+            {'IpProtocol': 'tcp',
+             'FromPort': 22,
+             'ToPort': 22,
+             'IpRanges': [{'CidrIp': ip}]}
+        ])
+    print(data)
+
+
 def main():
   parser = argparse.ArgumentParser(description='Startup EC2 instance')
   parser.add_argument('ec2Names', metavar='ec2Names', type=str, nargs='+',
@@ -74,6 +105,7 @@ def main():
     ec2 = EC2Instance(ec2Name)
     if args.start:
       ec2.start()
+      ec2.setSecurityGroupMyIP()
 
     if args.stop:
       ec2.stop()
